@@ -1,12 +1,9 @@
 package br.com.dio.model;
 
-import lombok.Getter;
-
 import java.util.List;
 
 import static br.com.dio.model.BankService.ACCOUNT;
 
-@Getter
 public class AccountWallet extends Wallet{
 
     private final List<String> pix;
@@ -24,7 +21,12 @@ public class AccountWallet extends Wallet{
     }
 
     public  void  addMoney(final long amount, final String description){
-        var money = generateMoney(amount,description);
-        this.money.addAll(money);
+        if (amount <= 0) return;
+        List<Money> newMoney = generateMoney(amount, description);
+        this.money.addAll(newMoney);
+    }
+
+    public List<String> getPix() {
+        return pix;
     }
 }

@@ -12,49 +12,71 @@ import java.util.List;
 
 import static br.com.dio.repository.CommonsRepository.checkFundsForTransaction;
 
+/**
+ * Gerencia as operações de investimento, incluindo a criação de produtos 
+ * e a movimentação de fundos entre contas e carteiras de investimento.
+ */
 public class InvestmentRepository {
 
     private long nextId = 0;
     private final List<Investment> investments = new ArrayList<>();
     private final List<InvestmentWallet> wallets =  new ArrayList<>();
 
+    /**
+     * Registra um novo produto de investimento no catálogo.
+     */
     public Investment create(final long tax, final long initialFunds){
         this.nextId ++;
-        var investment = new Investment(this.nextId, tax, initialFunds);
+        Investment investment = new Investment(this.nextId, tax, initialFunds);
         investments.add(investment);
         return investment;
     }
 
+    /**
+     * Abre uma nova carteira de investimento para uma conta corrente.
+     */
     public InvestmentWallet initInvestment(final AccountWallet account, final long id){
         if (!wallets.isEmpty()) {
-            var accountsInUse = wallets.stream().map(InvestmentWallet::getAccount).toList();
+            List<AccountWallet> accountsInUse = wallets.stream().map(InvestmentWallet::getAccount).toList();
             if (accountsInUse.contains(account)) {
                 throw new AccountWithInvestmentException("A conta'" + account + "'já possui um investimento");
             }
         }
-        var investment = findById(id);
+        Investment investment = findById(id);
         checkFundsForTransaction(account, investment.initialFunds());
-        var wallet = new InvestmentWallet(investment, account, investment.initialFunds());
+        InvestmentWallet wallet = new InvestmentWallet(investment, account, investment.initialFunds());
         wallets.add(wallet);
         return wallet;
     }
 
+    /**
+     * Transfere dinheiro da conta corrente para o investimento (Aporte).
+     */
     public InvestmentWallet deposit(final String pix, final long funds){
-        var wallet = findWalletByAccountPix(pix);
-        wallet.addMoney(wallet.getAccount().reduceMoney(funds), wallet.getService(), "Investimento");
+        InvestmentWallet wallet = findWalletByAccountPix(pix);
+        checkFundsForTransaction(wallet.getAccount(), funds);
+        wallet.addMoney(wallet.getAccount().reduceMoney(funds, "Aporte em investimento"), wallet.getService(), "Investimento");
         return wallet;
     }
 
+    /**
+     * Retira dinheiro do investimento e volta para a conta corrente (Resgate).
+     */
     public InvestmentWallet withdraw(final String pix, final long funds){
-        var wallet = findWalletByAccountPix(pix);
+        InvestmentWallet wallet = findWalletByAccountPix(pix);
         checkFundsForTransaction(wallet, funds);
-        wallet.getAccount().addMoney(wallet.reduceMoney(funds), wallet.getService(), "saque de investimentos");
+        wallet.getAccount().addMoney(wallet.reduceMoney(funds, "Resgate de investimento"), wallet.getService(), "saque de investimentos");
+        
+        // Se a carteira ficar zerada, removemos da lista de ativos
         if (wallet.getFunds() == 0){
             wallets.remove(wallet);
         }
         return wallet;
     }
 
+    /**
+     * Aplica a taxa de rendimento em todas as carteiras de investimento ativas.
+     */
     public void updateAmount(){
         wallets.forEach(w -> w.updateAmount(w.getInvestment().tax()));
     }

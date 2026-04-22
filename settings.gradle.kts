@@ -1,1 +1,1 @@
-rootProject.name = "java-bank"
+rootProject.name = "javaBank"
